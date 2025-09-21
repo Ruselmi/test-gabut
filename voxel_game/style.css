@@ -1,0 +1,8 @@
+/* Basic styling for the game */
+body {
+    margin: 0;
+    overflow: hidden; /* Hide scrollbars */
+}
+canvas {
+    display: block; /* Remove default margin */
+}
