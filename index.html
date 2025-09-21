@@ -3,52 +3,799 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Logo Generator Offline</title>
-    <link rel="stylesheet" href="style.css">
+    <title>Logo Generator Cerdas</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* CATATAN: Untuk fungsionalitas 100% offline, @import ini idealnya diganti
+           dengan deklarasi @font-face yang berisi data font woff2 dalam format Base64.
+           Karena keterbatasan lingkungan, @import tetap digunakan sebagai kompromi. */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #F9FAFB;
+            color: #1F2937;
+        }
+        .gradient-text {
+            background: linear-gradient(to right, #4F46E5, #A855F7);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .gradient-bg {
+            background: linear-gradient(to right, #4F46E5, #A855F7);
+        }
+        .toggle-checkbox:checked {
+            right: 0;
+            border-color: #4F46E5;
+        }
+        .toggle-checkbox:checked + .toggle-label {
+            background-color: #4F46E5;
+        }
+        #sticky-preview {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            z-index: 40; /* Below modal */
+            width: 80px;
+            height: 80px;
+            border-radius: 1rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            overflow: hidden;
+            transition: transform 0.3s ease-in-out;
+        }
+        #sticky-preview:hover {
+            transform: scale(1.1);
+        }
+        /* Hide sticky preview on desktop */
+        @media (min-width: 768px) {
+            #sticky-preview {
+                display: none !important;
+            }
+        }
+    </style>
 </head>
-<body>
-    <div class="container">
-        <div class="controls">
-            <h1>Logo Generator</h1>
-            <p>Buat logo kustom Anda sendiri yang bisa dijalankan offline.</p>
+<body class="antialiased">
 
-            <div class="control-group">
-                <label for="text-input">Teks Logo:</label>
-                <input type="text" id="text-input" value="Logo Saya">
-            </div>
+    <!-- Sticky Preview for Mobile -->
+    <div id="sticky-preview" class="hidden"></div>
 
-            <div class="control-group">
-                <label for="font-size-input">Ukuran Font:</label>
-                <input type="number" id="font-size-input" value="60" min="10" max="200">
-            </div>
+    <!-- Container Utama -->
+    <div id="app" class="container mx-auto p-4 md:p-8">
 
-            <div class="control-group">
-                <label for="font-family-select">Jenis Font:</label>
-                <select id="font-family-select">
-                    <option value="Arial">Arial</option>
-                    <option value="Verdana">Verdana</option>
-                    <option value="Georgia">Georgia</option>
-                    <option value="Times New Roman">Times New Roman</option>
-                    <option value="Courier New">Courier New</option>
-                </select>
-            </div>
+        <!-- Tampilan 1: AI Generator (Halaman Awal) -->
+        <div id="ai-view">
+            <header class="text-center mb-12">
+                <h1 class="text-4xl md:text-5xl font-bold mb-2">Buat Logo Profesional</h1>
+                <h2 class="text-5xl md:text-6xl font-bold gradient-text">Dalam Hitungan Detik</h2>
+                <p class="mt-4 text-lg text-gray-600 max-w-2xl mx-auto">Cukup ketik ide Anda, dan biarkan AI kami yang merancang logo unik untuk brand Anda.</p>
+            </header>
 
-            <div class="control-group">
-                <label for="text-color-input">Warna Teks:</label>
-                <input type="color" id="text-color-input" value="#000000">
-            </div>
+            <main class="max-w-3xl mx-auto">
+                <!-- AI Prompt Section -->
+                <div class="bg-white p-6 rounded-2xl shadow-lg">
+                    <textarea id="ai-prompt" class="w-full h-28 p-4 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition" placeholder="Contoh: 'Seekor rubah oranye untuk perusahaan teknologi' atau 'Logo simpel untuk kedai kopi'"></textarea>
+                    <button id="generate-btn" class="mt-4 w-full gradient-bg text-white font-bold py-3 px-6 rounded-lg text-lg hover:opacity-90 transition-transform transform hover:scale-105">
+                        Buat Logo dengan AI
+                    </button>
+                </div>
 
-            <div class="control-group">
-                <label for="bg-color-input">Warna Latar:</label>
-                <input type="color" id="bg-color-input" value="#FFFFFF">
-            </div>
-
-            <button id="download-btn">Download Logo</button>
+                <!-- Galeri Hasil AI -->
+                <div id="ai-gallery" class="mt-12 grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
+                    <!-- Kartu logo hasil AI akan dimasukkan di sini oleh JS -->
+                </div>
+            </main>
         </div>
-        <div class="canvas-container">
-            <canvas id="logo-canvas" width="500" height="500"></canvas>
+
+        <!-- Tampilan 2: Editor Manual (Halaman Kedua) - Awalnya disembunyikan -->
+        <div id="editor-view" class="hidden">
+            <!-- Header Editor -->
+            <div class="flex justify-between items-center mb-6">
+                <div>
+                    <h2 class="text-3xl font-bold">Editor Logo</h2>
+                    <p class="text-gray-500">Sesuaikan setiap detail untuk kesempurnaan.</p>
+                </div>
+                <button id="back-to-ai-btn" class="text-sm font-semibold text-gray-600 hover:text-indigo-600 flex items-center">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+                    Kembali ke Galeri
+                </button>
+            </div>
+
+            <!-- Layout Utama Editor (Preview Kiri, Kontrol Kanan) -->
+            <div class="flex flex-col md:flex-row gap-8">
+                <!-- Kolom Kiri: Pratinjau -->
+                <div class="w-full md:w-1/2 lg:w-3/5">
+                    <div class="sticky top-8">
+                        <div id="preview-area" class="bg-white rounded-2xl shadow-lg p-8 flex items-center justify-center aspect-square">
+                            <!-- Pratinjau logo akan dirender oleh JS di sini -->
+                            <div id="logo-preview-wrapper" class="w-full h-full"></div>
+                        </div>
+                        <!-- Panel Rekomendasi -->
+                        <div class="mt-6">
+                            <h3 class="font-bold text-lg mb-3">Rekomendasi untuk Anda</h3>
+                            <div id="recommendations-panel" class="grid grid-cols-3 gap-4">
+                                <!-- Rekomendasi akan dirender oleh JS di sini -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Kolom Kanan: Panel Kontrol -->
+                <div class="w-full md:w-1/2 lg:w-2/5">
+                    <div class="space-y-6">
+                        <!-- Panel Aksi -->
+                        <div class="bg-white p-5 rounded-xl shadow-sm">
+                            <h4 class="font-bold text-lg mb-4">Aksi Cepat</h4>
+                            <div class="grid grid-cols-2 gap-3 relative">
+                                <button id="randomize-btn" class="w-full bg-gray-100 text-gray-800 font-semibold py-2 px-4 rounded-lg hover:bg-gray-200 transition">Acak Desain</button>
+                                <div>
+                                    <button id="export-btn" class="w-full gradient-bg text-white font-semibold py-2 px-4 rounded-lg hover:opacity-90 transition">Ekspor Logo</button>
+                                    <div id="export-menu" class="hidden absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl z-10">
+                                        <a href="#" id="export-png-btn" class="block px-4 py-2 text-gray-800 hover:bg-indigo-50 rounded-t-lg">PNG (Resolusi Tinggi)</a>
+                                        <a href="#" id="export-jpg-btn" class="block px-4 py-2 text-gray-800 hover:bg-indigo-50">JPG (Resolusi Tinggi)</a>
+                                        <a href="#" id="export-svg-btn" class="block px-4 py-2 text-gray-800 hover:bg-indigo-50 rounded-b-lg">SVG (Vektor)</a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Panel Ikon -->
+                        <div class="bg-white p-5 rounded-xl shadow-sm">
+                            <h4 class="font-bold text-lg mb-3">Ikon</h4>
+                            <button id="open-icon-gallery-btn" class="w-full border-2 border-dashed border-gray-300 text-gray-500 font-semibold py-3 px-4 rounded-lg hover:bg-gray-50 hover:text-indigo-600 transition">Pilih dari Galeri...</button>
+                        </div>
+
+                        <!-- Panel Teks & Inisial -->
+                        <div class="bg-white p-5 rounded-xl shadow-sm">
+                            <h4 class="font-bold text-lg mb-4">Teks & Inisial</h4>
+                            <div class="space-y-4">
+                                <div>
+                                    <label for="input-brand-name" class="block text-sm font-medium text-gray-700 mb-1">Nama Brand</label>
+                                    <input type="text" id="input-brand-name" class="w-full border-gray-300 rounded-lg shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                </div>
+                                <div>
+                                    <label for="input-initials" class="block text-sm font-medium text-gray-700 mb-1">Inisial Kustom (1-5 karakter)</label>
+                                    <input type="text" id="input-initials" maxlength="5" class="w-full border-gray-300 rounded-lg shadow-sm focus:border-indigo-500 focus:ring-indigo-500" placeholder="Otomatis jika kosong">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Panel Warna -->
+                        <div class="bg-white p-5 rounded-xl shadow-sm">
+                            <h4 class="font-bold text-lg mb-4">Palet Warna</h4>
+                            <div class="grid grid-cols-2 gap-x-4 gap-y-3">
+                                <div class="flex items-center justify-between">
+                                    <label for="color-icon" class="text-sm text-gray-600">Ikon</label>
+                                    <input type="color" id="color-icon" class="w-8 h-8 p-0 border-none rounded-md bg-transparent">
+                                </div>
+                                <div class="flex items-center justify-between">
+                                    <label for="color-initials" class="text-sm text-gray-600">Inisial</label>
+                                    <input type="color" id="color-initials" class="w-8 h-8 p-0 border-none rounded-md bg-transparent">
+                                </div>
+                                <div class="flex items-center justify-between">
+                                    <label for="color-text" class="text-sm text-gray-600">Teks Brand</label>
+                                    <input type="color" id="color-text" class="w-8 h-8 p-0 border-none rounded-md bg-transparent">
+                                </div>
+                                <div class="flex items-center justify-between">
+                                    <label for="color-bg" class="text-sm text-gray-600">Latar</label>
+                                    <input type="color" id="color-bg" class="w-8 h-8 p-0 border-none rounded-md bg-transparent">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Panel Outline Bawah -->
+                        <div class="bg-white p-5 rounded-xl shadow-sm">
+                            <h4 class="font-bold text-lg mb-4">Garis Bawah Teks</h4>
+                             <div class="space-y-4">
+                                <div>
+                                    <label for="outline-style" class="block text-sm font-medium text-gray-700 mb-1">Gaya</label>
+                                    <select id="outline-style" class="w-full border-gray-300 rounded-lg shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                        <option value="none">Tidak Ada</option>
+                                        <option value="solid">Lurus</option>
+                                        <option value="wavy">Bergelombang</option>
+                                    </select>
+                                </div>
+                                <div class="flex items-center justify-between">
+                                    <label for="outline-color" class="text-sm text-gray-600">Warna</label>
+                                    <input type="color" id="outline-color" class="w-8 h-8 p-0 border-none rounded-md bg-transparent">
+                                </div>
+                                <div>
+                                    <label for="outline-thickness" class="block text-sm font-medium text-gray-700">Ketebalan: <span id="outline-thickness-value">2</span>px</label>
+                                    <input type="range" id="outline-thickness" min="1" max="10" value="2" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                                </div>
+                             </div>
+                        </div>
+
+                         <!-- Panel Pengaturan Tampilan -->
+                        <div class="bg-white p-5 rounded-xl shadow-sm">
+                             <h4 class="font-bold text-lg mb-3">Tampilan</h4>
+                             <div class="flex items-center justify-between">
+                                <label for="sticky-preview-toggle" class="text-sm text-gray-600">Pratinjau Pop-up (Mobile)</label>
+                                <div class="relative inline-block w-10 mr-2 align-middle select-none transition duration-200 ease-in">
+                                    <input type="checkbox" name="sticky-preview-toggle" id="sticky-preview-toggle" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer"/>
+                                    <label for="sticky-preview-toggle" class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer"></label>
+                                </div>
+                             </div>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
         </div>
+
+        <!-- Modal untuk Galeri Ikon - Awalnya disembunyikan -->
+        <div id="icon-modal" class="hidden fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4">
+            <div id="icon-modal-content" class="bg-white rounded-2xl shadow-2xl w-11/12 max-w-5xl h-[90vh] flex flex-col">
+                <div class="flex justify-between items-center p-5 border-b">
+                    <h3 class="text-2xl font-bold">Pilih Ikon</h3>
+                    <button id="close-modal-btn" class="text-gray-400 hover:text-gray-800">
+                        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                    </button>
+                </div>
+                <div class="flex flex-grow overflow-hidden">
+                    <div id="icon-categories" class="w-1/4 bg-gray-50 border-r overflow-y-auto p-4 space-y-2">
+                        <!-- Kategori akan dirender oleh JS -->
+                    </div>
+                    <div id="icon-grid" class="w-3/4 overflow-y-auto p-6 grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-7 gap-4">
+                        <!-- Ikon akan dirender oleh JS -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
     </div>
-    <script src="script.js"></script>
+
+    <!-- Script Aplikasi Utama -->
+    <script>
+        /*!
+ * html2canvas 1.4.1 <https://html2canvas.hertzen.com>
+ * Copyright (c) 2022 Niklas von Hertzen <https://hertzen.com>
+ * Released under MIT License
+ */
+!function(A,e){"object"==typeof exports&&"undefined"!=typeof module?module.exports=e():"function"==typeof define&&define.amd?define(e):(A="undefined"!=typeof globalThis?globalThis:A||self).html2canvas=e()}(this,function(){"use strict";var r=function(A,e){return(r=Object.setPrototypeOf||{__proto__:[]}instanceof Array&&function(A,e){A.__proto__=e}||function(A,e){for(var t in e)Object.prototype.hasOwnProperty.call(e,t)&&(A[t]=e[t])})(A,e)};function A(A,e){if("function"!=typeof e&&null!==e)throw new TypeError("Class extends value "+String(e)+" is not a constructor or null");function t(){this.constructor=A}r(A,e),A.prototype=null===e?Object.create(e):(t.prototype=e.prototype,new t)}var h=function(){return(h=Object.assign||function(A){for(var e,t=1,r=arguments.length;t<r;t++)for(var B in e=arguments[t])Object.prototype.hasOwnProperty.call(e,B)&&(A[B]=e[B]);return A}).apply(this,arguments)};function a(A,s,o,i){return new(o=o||Promise)(function(t,e){function r(A){try{n(i.next(A))}catch(A){e(A)}}function B(A){try{n(i.throw(A))}catch(A){e(A)}}function n(A){var e;A.done?t(A.value):((e=A.value)instanceof o?e:new o(function(A){A(e)})).then(r,B)}n((i=i.apply(A,s||[])).next())})}function H(t,r){var B,n,s,o={label:0,sent:function(){if(1&s[0])throw s[1];return s[1]},trys:[],ops:[]},A={next:e(0),throw:e(1),return:e(2)};return"function"==typeof Symbol&&(A[Symbol.iterator]=function(){return this}),A;function e(e){return function(A){return function(e){if(B)throw new TypeError("Generator is already executing.");for(;o;)try{if(B=1,n&&(s=2&e[0]?n.return:e[0]?n.throw||((s=n.return)&&s.call(n),0):n.next)&&!(s=s.call(n,e[1])).done)return s;switch(n=0,(e=s?[2&e[0],s.value]:e)[0]){case 0:case 1:s=e;break;case 4:return o.label++,{value:e[1],done:!1};case 5:o.label++,n=e[1],e=[0];continue;case 7:e=o.ops.pop(),o.trys.pop();continue;default:if(!(s=0<(s=o.trys).length&&s[s.length-1])&&(6===e[0]||2===e[0])){o=0;continue}if(3===e[0]&&(!s||e[1]>s[0]&&e[1]<s[3])){o.label=e[1];break}if(6===e[0]&&o.label<s[1]){o.label=s[1],s=e;break}if(s&&o.label<s[2]){o.label=s[2],o.ops.push(e);break}s[2]&&o.ops.pop(),o.trys.pop();continue}e=r.call(t,o)}catch(A){e=[6,A],n=0}finally{B=s=0}if(5&e[0])throw e[1];return{value:e[0]?e[1]:void 0,done:!0}}([e,A])}}}function t(A,e,t){if(t||2===arguments.length)for(var r,B=0,n=e.length;B<n;B++)!r&&B in e||((r=r||Array.prototype.slice.call(e,0,B))[B]=e[B]);return A.concat(r||e)}var d=(B.prototype.add=function(A,e,t,r){return new B(this.left+A,this.top+e,this.width+t,this.height+r)},B.fromClientRect=function(A,e){return new B(e.left+A.windowBounds.left,e.top+A.windowBounds.top,e.width,e.height)},B.fromDOMRectList=function(A,e){e=Array.from(e).find(function(A){return 0!==A.width});return e?new B(e.left+A.windowBounds.left,e.top+A.windowBounds.top,e.width,e.height):B.EMPTY},B.EMPTY=new B(0,0,0,0),B);function B(A,e,t,r){this.left=A,this.top=e,this.width=t,this.height=r}for(var f=function(A,e){return d.fromClientRect(A,e.getBoundingClientRect())},Q=function(A){for(var e=[],t=0,r=A.length;t<r;){var B,n=A.charCodeAt(t++);55296<=n&&n<=56319&&t<r?56320==(64512&(B=A.charCodeAt(t++)))?e.push(((1023&n)<<10)+(1023&B)+65536):(e.push(n),t--):e.push(n)}return e},g=function(){for(var A=[],e=0;e<arguments.length;e++)A[e]=arguments[e];if(String.fromCodePoint)return String.fromCodePoint.apply(String,A);var t=A.length;if(!t)return"";for(var r=[],B=-1,n="";++B<t;){var s=A[B];s<=65535?r.push(s):(s-=65536,r.push(55296+(s>>10),s%1024+56320)),(B+1===t||16384<r.length)&&(n+=String.fromCharCode.apply(String,r),r.length=0)}return n},e="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/",n="undefined"==typeof Uint8Array?[]:new Uint8Array(256),s=0;s<e.length;s++)n[e.charCodeAt(s)]=s;for(var o="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/",c="undefined"==typeof Uint8Array?[]:new Uint8Array(256),i=0;i<o.length;i++)c[o.charCodeAt(i)]=i;function w(A,e,t){return A.slice?A.slice(e,t):new Uint16Array(Array.prototype.slice.call(A,e,t))}var U=(l.prototype.get=function(A){var e;if(0<=A){if(A<55296||56319<A&&A<=65535)return e=this.index[A>>5],this.data[e=(e<<2)+(31&A)];if(A<=65535)return e=this.index[2048+(A-55296>>5)],this.data[e=(e<<2)+(31&A)];if(A<this.highStart)return e=this.index[e=2080+(A>>11)],e=this.index[e+=A>>5&63],this.data[e=(e<<2)+(31&A)];if(A<=1114111)return this.data[this.highValueIndex]}return this.errorValue},l);function l(A,e,t,r,B,n){this.initialValue=A,this.errorValue=e,this.highStart=t,this.highValueIndex=r,this.index=B,this.data=n}for(var C="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/",u="undefined"==typeof Uint8Array?[]:new Uint8Array(256),F=0;F<C.length;F++)u[C.charCodeAt(F)]=F;function p(A,e,t,r){var B=r[t];if(Array.isArray(A)?-1!==A.indexOf(B):A===B)for(var n=t;n<=r.length;){if((o=r[++n])===e)return 1;if(o!==D)break}if(B===D)for(n=t;0<n;){var s=r[--n];if(Array.isArray(A)?-1!==A.indexOf(s):A===s)for(var o,i=t;i<=r.length;){if((o=r[++i])===e)return 1;if(o!==D)break}if(s!==D)break}}function E(A,e){for(var t=A;0<=t;){var r=e[t];if(r!==D)return r;t--}return 0}function I(t,A){var e=(B=function(A,r){void 0===r&&(r="strict");var B=[],n=[],s=[];return A.forEach(function(A,e){var t=rA.get(A);if(50<t?(s.push(!0),t-=50):s.push(!1),-1!==["normal","auto","loose"].indexOf(r)&&-1!==[8208,8211,12316,12448].indexOf(A))return n.push(e),B.push(16);if(4!==t&&11!==t)return n.push(e),31===t?B.push("strict"===r?O:q):t===AA||29===t?B.push(J):43===t?131072<=A&&A<=196605||196608<=A&&A<=262141?B.push(q):B.push(J):void B.push(t);if(0===e)return n.push(e),B.push(J);t=B[e-1];return-1===iA.indexOf(t)?(n.push(n[e-1]),B.push(t)):(n.push(e),B.push(J))}),[n,B,s]}(t,(A=A||{lineBreak:"normal",wordBreak:"normal"}).lineBreak))[0],r=B[1],B=B[2];return[e,r="break-all"===A.wordBreak||"break-word"===A.wordBreak?r.map(function(A){return-1!==[R,J,AA].indexOf(A)?q:A}):r,"keep-all"===A.wordBreak?B.map(function(A,e){return A&&19968<=t[e]&&t[e]<=40959}):void 0]}var y,K,m,L,b,D=10,v=13,x=15,M=17,S=18,T=19,G=20,O=21,V=22,k=24,R=25,N=26,P=27,X=28,J=30,Y=32,W=33,Z=34,_=35,q=37,j=38,z=39,$=40,AA=42,eA=[9001,65288],tA="×",rA=(m=function(A){var e,t,r,B,n=.75*A.length,s=A.length,o=0;"="===A[A.length-1]&&(n--,"="===A[A.length-2]&&n--);for(var n=new("undefined"!=typeof ArrayBuffer&&"undefined"!=typeof Uint8Array&&void 0!==Uint8Array.prototype.slice?ArrayBuffer:Array)(n),i=Array.isArray(n)?n:new Uint8Array(n),Q=0;Q<s;Q+=4)e=c[A.charCodeAt(Q)],t=c[A.charCodeAt(Q+1)],r=c[A.charCodeAt(Q+2)],B=c[A.charCodeAt(Q+3)],i[o++]=e<<2|t>>4,i[o++]=(15&t)<<4|r>>2,i[o++]=(3&r)<<6|63&B;return n}(y="KwAAAAAAAAAACA4AUD0AADAgAAACAAAAAAAIABAAGABAAEgAUABYAGAAaABgAGgAYgBqAF8AZwBgAGgAcQB5AHUAfQCFAI0AlQCdAKIAqgCyALoAYABoAGAAaABgAGgAwgDKAGAAaADGAM4A0wDbAOEA6QDxAPkAAQEJAQ8BFwF1AH0AHAEkASwBNAE6AUIBQQFJAVEBWQFhAWgBcAF4ATAAgAGGAY4BlQGXAZ8BpwGvAbUBvQHFAc0B0wHbAeMB6wHxAfkBAQIJAvEBEQIZAiECKQIxAjgCQAJGAk4CVgJeAmQCbAJ0AnwCgQKJApECmQKgAqgCsAK4ArwCxAIwAMwC0wLbAjAA4wLrAvMC+AIAAwcDDwMwABcDHQMlAy0DNQN1AD0DQQNJA0kDSQNRA1EDVwNZA1kDdQB1AGEDdQBpA20DdQN1AHsDdQCBA4kDkQN1AHUAmQOhA3UAdQB1AHUAdQB1AHUAdQB1AHUAdQB1AHUAdQB1AHUAdQB1AKYDrgN1AHUAtgO+A8YDzgPWAxcD3gPjA+sD8wN1AHUA+wMDBAkEdQANBBUEHQQlBCoEFwMyBDgEYABABBcDSARQBFgEYARoBDAAcAQzAXgEgASIBJAEdQCXBHUAnwSnBK4EtgS6BMIEyAR1AHUAdQB1AHUAdQCVANAEYABgAGAAYABgAGAAYABgANgEYADcBOQEYADsBPQE/AQEBQwFFAUcBSQFLAU0BWQEPAVEBUsFUwVbBWAAYgVgAGoFcgV6BYIFigWRBWAAmQWfBaYFYABgAGAAYABgAKoFYACxBbAFuQW6BcEFwQXHBcEFwQXPBdMF2wXjBeoF8gX6BQIGCgYSBhoGIgYqBjIGOgZgAD4GRgZMBmAAUwZaBmAAYABgAGAAYABgAGAAYABgAGAAYABgAGIGYABpBnAGYABgAGAAYABgAGAAYABgAGAAYAB4Bn8GhQZgAGAAYAB1AHcDFQSLBmAAYABgAJMGdQA9A3UAmwajBqsGqwaVALMGuwbDBjAAywbSBtIG1QbSBtIG0gbSBtIG0gbdBuMG6wbzBvsGAwcLBxMHAwcbByMHJwcsBywHMQcsB9IGOAdAB0gHTgfSBkgHVgfSBtIG0gbSBtIG0gbSBtIG0gbSBiwHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBywHLAcsBy-Trivial.js
++        // --- DATABASE ASET (IKON & WARNA) ---
++        // CATATAN: Dalam aplikasi nyata, ini akan berisi 550+ ikon.
+        // Untuk demo ini, kami menyediakan sampel representatif.
+        const THEMES = {
+            technology: {
+                keywords: ['tech', 'teknologi', 'software', 'digital', 'crypto', 'data', 'computer', 'code', 'ai'],
+                icons: [
+                    `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.94-.49-7-3.85-7-7.93s3.06-7.44 7-7.93v15.86zm2-15.86c3.94.49 7 3.85 7 7.93s-3.06 7.44-7 7.93V4.07z"></path></svg>`,
+                    `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M9.4 16.6L4.8 12l4.6-4.6L8 6l-6 6 6 6 1.4-1.4zm5.2 0l4.6-4.6-4.6-4.6L16 6l6 6-6 6-1.4-1.4z"></path></svg>`,
+                    `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm0 6c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z"></path><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"></path></svg>`,
+                    `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-1 16H6c-.55 0-1-.45-1-1V6c0-.55.45-1 1-1h12c.55 0 1 .45 1 1v12c0 .55-.45 1-1 1z"></path><path d="M10 14.5c0 .83.67 1.5 1.5 1.5s1.5-.67 1.5-1.5V10c0-1.1-.9-2-2-2s-2 .9-2 2h1c0-.55.45-1 1-1s1 .45 1 1v4.5z"></path></svg>`
+                ],
+                palettes: [
+                    { bg: '#ffffff', icon: '#1F2937', text: '#111827', initials: '#4F46E5', outline: '#D1D5DB' },
+                    { bg: '#111827', icon: '#E5E7EB', text: '#F9FAFB', initials: '#818CF8', outline: '#4B5563' },
+                    { bg: '#EEF2FF', icon: '#4338CA', text: '#1E1B4B', initials: '#FFFFFF', outline: '#A5B4FC' }
+                ]
+            },
+            nature: {
+                keywords: ['nature', 'alam', 'leaf', 'daun', 'gunung', 'mountain', 'forest', 'hutan', 'eco', 'green'],
+                icons: [
+                    `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"></path><path d="M12 5.5c-3.03 0-5.5 2.47-5.5 5.5 0 1.94 1.02 3.66 2.55 4.58l-1.05 1.05c-1.84-1.2-3-3.28-3-5.63 0-3.87 3.13-7 7-7s7 3.13 7 7c0 2.35-1.16 4.43-3 5.63l-1.05-1.05C16.48 14.66 17.5 12.94 17.5 11c0-3.03-2.47-5.5-5.5-5.5z"></path></svg>`,
+                    `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.66 17.66C16.07 19.25 14.07 20 12 20s-4.07-.75-5.66-2.34C4.75 16.07 4 14.07 4 12s.75-4.07 2.34-5.66C7.93 4.75 9.93 4 12 4s4.07.75 5.66 2.34c1.59 1.59 2.34 3.59 2.34 5.66s-.75 4.07-2.34 5.66zM12 6c-3.31 0-6 2.69-6 6s2.69 6 6 6 6-2.69 6-6-2.69-6-6-6z"></path></svg>`,
+                    `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L1 21h22L12 2zm0 4.23L17.29 19H6.71L12 6.23z"></path></svg>`,
+                    `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 3H3c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-2 16H5V5h14v14z"></path><path d="M12 12c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z"></path></svg>`
+                ],
+                palettes: [
+                    { bg: '#F0FFF4', icon: '#2F855A', text: '#2D3748', initials: '#FFFFFF', outline: '#9AE6B4' },
+                    { bg: '#6B46C1', icon: '#F7FAFC', text: '#E2E8F0', initials: '#FAF5FF', outline: '#D6BCFA' },
+                    { bg: '#FFFFF0', icon: '#D69E2E', text: '#744210', initials: '#FFFFFF', outline: '#F6E05E' }
+                ]
+            },
+            food: {
+                keywords: ['food', 'makanan', 'coffee', 'kopi', 'resto', 'restaurant', 'cafe', 'dapur', 'kitchen'],
+                icons: [
+                    `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 3H4v10c0 2.21 1.79 4 4 4h6c2.21 0 4-1.79 4-4v-3h2c1.11 0 2-.89 2-2V5c0-1.11-.89-2-2-2zm0 5h-2V5h2v3zM4 19h16v2H4z"></path></svg>`,
+                    `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.5 3H6c-1.1 0-2 .9-2 2v5.71c0 3.83 2.95 7.18 6.78 7.29 3.96.12 7.22-3.06 7.22-7v-6c0-1.1-.9-2-2-2zM12 16c-2.76 0-5-2.24-5-5h10c0 2.76-2.24 5-5 5z"></path><path d="M12 6c1.1 0 2 .9 2 2H10c0-1.1.9-2 2-2z"></path></svg>`,
+                    `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M14.5 11c1.38 0 2.5-1.12 2.5-2.5S15.88 6 14.5 6 12 7.12 12 8.5s1.12 2.5 2.5 2.5z"></path><path d="M21 3H3v18h18V3zm-9 16c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5z"></path></svg>`,
+                    `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5-2.5z"></path></svg>`
+                ],
+                palettes: [
+                    { bg: '#FFF7ED', icon: '#DD6B20', text: '#702D0A', initials: '#FFFFFF', outline: '#FBD38D' },
+                    { bg: '#2D3748', icon: '#EDF2F7', text: '#A0AEC0', initials: '#ECC94B', outline: '#4A5568' },
+                    { bg: '#e1f5fe', icon: '#0277bd', text: '#01579b', initials: '#FFFFFF', outline: '#81d4fa' }
+                ]
+            }
+        };
+
+        // --- ELEMEN DOM ---
+        const aiView = document.getElementById('ai-view');
+        const editorView = document.getElementById('editor-view');
+        const generateBtn = document.getElementById('generate-btn');
+        const aiPrompt = document.getElementById('ai-prompt');
+        const aiGallery = document.getElementById('ai-gallery');
+        const iconModal = document.getElementById('icon-modal');
+        const closeModalBtn = document.getElementById('close-modal-btn');
+        const backToAiBtn = document.getElementById('back-to-ai-btn');
+
+        // --- ELEMEN DOM EDITOR ---
+        const previewArea = document.getElementById('preview-area');
+        const logoPreviewWrapper = document.getElementById('logo-preview-wrapper');
+        const recommendationsPanel = document.getElementById('recommendations-panel');
+        const randomizeBtn = document.getElementById('randomize-btn');
+        const stickyPreviewToggle = document.getElementById('sticky-preview-toggle');
+        const stickyPreview = document.getElementById('sticky-preview');
+        const inputBrandName = document.getElementById('input-brand-name');
+        const inputInitials = document.getElementById('input-initials');
+        const colorIcon = document.getElementById('color-icon');
+        const colorInitials = document.getElementById('color-initials');
+        const colorText = document.getElementById('color-text');
+        const colorBg = document.getElementById('color-bg');
+        const outlineStyle = document.getElementById('outline-style');
+        const outlineColor = document.getElementById('outline-color');
+        const outlineThickness = document.getElementById('outline-thickness');
+        const outlineThicknessValue = document.getElementById('outline-thickness-value');
+        const openIconGalleryBtn = document.getElementById('open-icon-gallery-btn');
+        const iconCategoriesContainer = document.getElementById('icon-categories');
+        const iconGrid = document.getElementById('icon-grid');
+
+        // --- STATE APLIKASI ---
+        let currentLogoState = {};
+
+        // --- LOGIKA FITUR UX TAMBAHAN ---
+        function renderStickyPreview() {
+            if (!currentLogoState || Object.keys(currentLogoState).length === 0) return;
+
+            const { icon, initials, palette } = currentLogoState;
+            stickyPreview.style.backgroundColor = palette.bg;
+
+            let initialsFontSize = '1.5rem';
+            if (initials.length === 3) initialsFontSize = '1.2rem';
+            if (initials.length >= 4) initialsFontSize = '1rem';
+
+            stickyPreview.innerHTML = `
+                <div class="relative w-full h-full flex items-center justify-center">
+                    <div class="absolute inset-0 opacity-80" style="color: ${palette.icon};">${icon}</div>
+                    <span class="relative font-bold" style="font-size: ${initialsFontSize}; color: ${palette.initials};">${initials}</span>
+                </div>
+            `;
+        }
+
+        function createMiniLogoHTML(config) {
+            const { icon, palette, brandName, initials } = config;
+            return `
+                <div class="w-full h-full flex flex-col items-center justify-center rounded-lg p-2 text-xs" style="background-color: ${palette.bg};">
+                    <div class="relative w-12 h-12 flex items-center justify-center">
+                        <div class="absolute inset-0" style="color: ${palette.icon}">${icon}</div>
+                        <span class="relative font-bold text-lg" style="color: ${palette.initials};">${initials}</span>
+                    </div>
+                    <p class="mt-1 font-semibold truncate" style="color: ${palette.text};">${brandName}</p>
+                </div>
+            `;
+        }
+
+        function renderRecommendations() {
+            recommendationsPanel.innerHTML = '';
+            const theme = THEMES[currentLogoState.themeKey];
+            if (!theme) return;
+
+            for (let i = 0; i < 3; i++) {
+                const randomIcon = getRandomElement(theme.icons.filter(icon => icon !== currentLogoState.icon));
+                const randomPalette = getRandomElement(theme.palettes.filter(p => p.bg !== currentLogoState.palette.bg));
+
+                const config = {
+                    ...currentLogoState, // copy current state
+                    icon: randomIcon || getRandomElement(theme.icons), // fallback if all icons are the same
+                    palette: { ...randomPalette },
+                    outline: { ...currentLogoState.outline, color: randomPalette.outline }
+                };
+
+                const card = document.createElement('button');
+                card.className = 'w-full h-32 bg-white rounded-xl shadow-sm overflow-hidden hover:shadow-lg hover:ring-2 hover:ring-indigo-400 transition-all';
+                card.innerHTML = createMiniLogoHTML(config);
+                card.addEventListener('click', () => showEditorView(config));
+                recommendationsPanel.appendChild(card);
+            }
+        }
+
+        function randomizeDesign() {
+            const allThemeKeys = Object.keys(THEMES);
+            const randomThemeKey = getRandomElement(allThemeKeys);
+            const randomTheme = THEMES[randomThemeKey];
+            const randomPalette = getRandomElement(randomTheme.palettes);
+
+            currentLogoState.themeKey = randomThemeKey;
+            currentLogoState.palette = {
+                bg: randomPalette.bg,
+                icon: randomPalette.icon,
+                initials: randomPalette.initials,
+                text: randomPalette.text,
+            };
+            currentLogoState.outline.color = randomPalette.outline;
+
+            updateControlsFromState();
+            renderPreview();
+            renderRecommendations();
+        }
+
+        // --- LOGIKA MODAL IKON ---
+
+        function renderIconsForCategory(themeKey) {
+            iconGrid.innerHTML = '';
+            const icons = THEMES[themeKey].icons;
+            icons.forEach(iconSVG => {
+                const iconWrapper = document.createElement('button');
+                iconWrapper.className = 'p-3 bg-gray-100 rounded-lg flex items-center justify-center aspect-square text-gray-600 hover:bg-indigo-100 hover:text-indigo-600 transition-all duration-200';
+                iconWrapper.innerHTML = iconSVG;
+                iconWrapper.addEventListener('click', () => {
+                    currentLogoState.icon = iconSVG;
+                    renderPreview();
+                    iconModal.classList.add('hidden');
+                });
+                iconGrid.appendChild(iconWrapper);
+            });
+
+            // Update active category
+            document.querySelectorAll('#icon-categories button').forEach(btn => {
+                if (btn.dataset.themeKey === themeKey) {
+                    btn.classList.add('bg-indigo-100', 'text-indigo-700', 'font-bold');
+                    btn.classList.remove('text-gray-600', 'hover:bg-gray-200');
+                } else {
+                    btn.classList.remove('bg-indigo-100', 'text-indigo-700', 'font-bold');
+                    btn.classList.add('text-gray-600', 'hover:bg-gray-200');
+                }
+            });
+        }
+
+        function populateIconModal() {
+            iconCategoriesContainer.innerHTML = '';
+            Object.keys(THEMES).forEach(themeKey => {
+                const categoryBtn = document.createElement('button');
+                categoryBtn.dataset.themeKey = themeKey;
+                categoryBtn.className = 'w-full text-left p-2 rounded-md capitalize text-gray-600 hover:bg-gray-200';
+                categoryBtn.textContent = themeKey;
+                categoryBtn.addEventListener('click', () => renderIconsForCategory(themeKey));
+                iconCategoriesContainer.appendChild(categoryBtn);
+            });
+        }
+
+        function openIconModal() {
+            populateIconModal();
+            renderIconsForCategory(currentLogoState.themeKey || 'technology');
+            iconModal.classList.remove('hidden');
+        }
+
+        // --- LOGIKA EDITOR ---
+
+        function renderPreview() {
+            if (!currentLogoState || Object.keys(currentLogoState).length === 0) return;
+
+            const { brandName, initials, icon, palette, outline } = currentLogoState;
+
+            // Update warna latar belakang area pratinjau
+            previewArea.style.backgroundColor = palette.bg;
+
+            // Sync sticky preview
+            if (stickyPreviewToggle.checked) {
+                renderStickyPreview();
+            }
+
+            // Logika ukuran font adaptif
+            let initialsFontSize = '4rem';
+            if (initials.length === 3) initialsFontSize = '3.5rem';
+            if (initials.length === 4) initialsFontSize = '2.8rem';
+            if (initials.length >= 5) initialsFontSize = '2.2rem';
+
+            // Logika penempatan diagonal untuk 2 huruf
+            let initialsHTML = `<span class="relative font-bold" style="font-size: ${initialsFontSize}; color: ${palette.initials};">${initials}</span>`;
+            if (initials.length === 2) {
+                initialsHTML = `
+                    <div class="relative font-bold flex items-center justify-center" style="font-size: ${initialsFontSize}; color: ${palette.initials};">
+                        <span style="transform: rotate(-15deg) translateX(-0.1em);">${initials[0]}</span>
+                        <span style="transform: rotate(15deg) translateX(0.1em) translateY(-0.1em);">${initials[1]}</span>
+                    </div>
+                `;
+            }
+
+            // Logika untuk outline bawah teks
+            let outlineHTML = '';
+            if (outline.style !== 'none') {
+                if (outline.style === 'solid') {
+                    outlineHTML = `<div style="width: 100%; height: ${outline.thickness}px; background-color: ${outline.color}; margin-top: 8px;"></div>`;
+                } else if (outline.style === 'wavy') {
+                    // SVG untuk garis bergelombang
+                    outlineHTML = `
+                        <svg width="100%" height="${outline.thickness * 4}" viewBox="0 0 100 ${outline.thickness * 4}" style="margin-top: 4px;">
+                            <path d="M0,${outline.thickness * 2} C25,0 75,${outline.thickness * 4} 100,${outline.thickness * 2}" stroke="${outline.color}" fill="none" stroke-width="${outline.thickness}" stroke-linecap="round"/>
+                        </svg>
+                    `;
+                }
+            }
+
+            logoPreviewWrapper.innerHTML = `
+                <div class="w-full h-full flex flex-col items-center justify-center text-center p-4">
+                    <div class="relative w-48 h-48 flex items-center justify-center mb-4">
+                        <div class="absolute inset-0" style="color: ${palette.icon}">${icon}</div>
+                        ${initialsHTML}
+                    </div>
+                    <div class="text-center">
+                        <p class="text-4xl font-bold" style="color: ${palette.text};">${brandName}</p>
+                        ${outlineHTML}
+                    </div>
+                </div>
+            `;
+        }
+
+        function updateControlsFromState() {
+            inputBrandName.value = currentLogoState.brandName;
+            inputInitials.value = currentLogoState.initials;
+            colorIcon.value = currentLogoState.palette.icon;
+            colorInitials.value = currentLogoState.palette.initials;
+            colorText.value = currentLogoState.palette.text;
+            colorBg.value = currentLogoState.palette.bg;
+            outlineStyle.value = currentLogoState.outline.style;
+            outlineColor.value = currentLogoState.outline.color;
+            outlineThickness.value = currentLogoState.outline.thickness;
+            outlineThicknessValue.textContent = currentLogoState.outline.thickness;
+        }
+
+        function getAutoInitials(name) {
+            if (!name) return '';
+            const words = name.trim().split(/\s+/);
+            if (words.length >= 2) {
+                return (words[0][0] + words[1][0]).toUpperCase();
+            }
+            if (words.length === 1 && words[0].length > 0) {
+                return words[0][0].toUpperCase();
+            }
+            return '';
+        }
+
+        function setupEditorEventListeners() {
+            inputBrandName.addEventListener('input', (e) => {
+                currentLogoState.brandName = e.target.value;
+                if (inputInitials.value === '' || inputInitials.placeholder === currentLogoState.initials) {
+                    const autoInitials = getAutoInitials(e.target.value);
+                    currentLogoState.initials = autoInitials;
+                    inputInitials.placeholder = autoInitials;
+                }
+                renderPreview();
+            });
+
+            inputInitials.addEventListener('input', (e) => {
+                currentLogoState.initials = e.target.value.toUpperCase();
+                if (e.target.value === '') {
+                    const autoInitials = getAutoInitials(inputBrandName.value);
+                    currentLogoState.initials = autoInitials;
+                    inputInitials.placeholder = autoInitials;
+                }
+                renderPreview();
+            });
+
+            colorIcon.addEventListener('input', (e) => { currentLogoState.palette.icon = e.target.value; renderPreview(); });
+            colorInitials.addEventListener('input', (e) => { currentLogoState.palette.initials = e.target.value; renderPreview(); });
+            colorText.addEventListener('input', (e) => { currentLogoState.palette.text = e.target.value; renderPreview(); });
+            colorBg.addEventListener('input', (e) => { currentLogoState.palette.bg = e.target.value; renderPreview(); });
+
+            outlineStyle.addEventListener('change', (e) => { currentLogoState.outline.style = e.target.value; renderPreview(); });
+            outlineColor.addEventListener('input', (e) => { currentLogoState.outline.color = e.target.value; renderPreview(); });
+            outlineThickness.addEventListener('input', (e) => {
+                currentLogoState.outline.thickness = e.target.value;
+                outlineThicknessValue.textContent = e.target.value;
+                renderPreview();
+            });
+        }
+
+        // --- LOGIKA GENERATOR AI ---
+        function getThemeFromPrompt(prompt) {
+            const lowerCasePrompt = prompt.toLowerCase();
+            if (!lowerCasePrompt) return null;
+            for (const themeKey in THEMES) {
+                for (const keyword of THEMES[themeKey].keywords) {
+                    if (lowerCasePrompt.includes(keyword)) return themeKey;
+                }
+            }
+            return null;
+        }
+
+        function getRandomElement(arr) {
+            return arr[Math.floor(Math.random() * arr.length)];
+        }
+
+        function generateLogoHTML(config) {
+            const { icon, palette, brandName, initials } = config;
+            const fontSize = initials.length > 2 ? 36 - (initials.length * 4) : 48;
+            return `
+                <div class="w-full h-40 flex flex-col items-center justify-center rounded-lg" style="background-color: ${palette.bg};">
+                    <div class="relative w-20 h-20 flex items-center justify-center">
+                        <div class="absolute inset-0" style="color: ${palette.icon}">${icon}</div>
+                        <span class="relative font-bold text-2xl" style="font-size: ${fontSize}px; color: ${palette.initials};">${initials}</span>
+                    </div>
+                    <p class="mt-2 font-semibold" style="color: ${palette.text};">${brandName}</p>
+                </div>
+            `;
+        }
+
+        function generateAiLogos() {
+            generateBtn.disabled = true;
+            generateBtn.innerHTML = `<span class="animate-pulse">Membuat...</span>`;
+
+            // Memberi sedikit waktu agar UI sempat update sebelum proses berat dimulai
+            setTimeout(() => {
+                const prompt = aiPrompt.value;
+                let themeKey = getThemeFromPrompt(prompt);
+                if (!themeKey) {
+                    const allThemeKeys = Object.keys(THEMES);
+                    themeKey = getRandomElement(allThemeKeys);
+                }
+                const theme = THEMES[themeKey];
+                aiGallery.innerHTML = '';
+
+                for (let i = 0; i < 8; i++) {
+                const icon = getRandomElement(theme.icons);
+                const palette = getRandomElement(theme.palettes);
+                const brandName = "Nama Brand";
+                const initials = getAutoInitials(brandName);
+
+                const config = { icon, palette: {...palette}, brandName, initials, themeKey,
+                    outline: { style: 'none', color: palette.outline, thickness: 2 }
+                };
+
+                const card = document.createElement('div');
+                card.className = 'bg-white rounded-xl shadow-md overflow-hidden cursor-pointer hover:shadow-xl transition-shadow';
+                card.innerHTML = `
+                    ${generateLogoHTML(config)}
+                    <div class="p-3 text-center">
+                        <button class="edit-btn w-full text-sm font-semibold text-indigo-600 hover:text-indigo-800">Edit Logo Ini</button>
+                    </div>
+                `;
+
+                const editBtn = card.querySelector('.edit-btn');
+                editBtn.dataset.config = JSON.stringify(config);
+                editBtn.addEventListener('click', (e) => {
+                    const newConfig = JSON.parse(e.currentTarget.dataset.config);
+                    showEditorView(newConfig);
+                });
+                aiGallery.appendChild(card);
+            }
+
+                generateBtn.disabled = false;
+                generateBtn.textContent = 'Buat Logo dengan AI';
+            }, 50);
+        }
+
+        // --- LOGIKA APLIKASI ---
+        function showEditorView(config) {
+            currentLogoState = JSON.parse(JSON.stringify(config)); // Deep copy
+            aiView.classList.add('hidden');
+            editorView.classList.remove('hidden');
+            updateControlsFromState();
+            renderPreview();
+            renderRecommendations();
+            window.scrollTo(0, 0);
+        }
+
+        function showAiView() {
+            editorView.classList.add('hidden');
+            aiView.classList.remove('hidden');
+        }
+
+        // ---INISIALISASI---
+        generateBtn.addEventListener('click', generateAiLogos);
+        backToAiBtn.addEventListener('click', showAiView);
+        openIconGalleryBtn.addEventListener('click', openIconModal);
+        randomizeBtn.addEventListener('click', randomizeDesign);
+
+        const exportBtn = document.getElementById('export-btn');
+        const exportMenu = document.getElementById('export-menu');
+        const exportPngBtn = document.getElementById('export-png-btn');
+        const exportJpgBtn = document.getElementById('export-jpg-btn');
+        const exportSvgBtn = document.getElementById('export-svg-btn');
+
+        exportBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            exportMenu.classList.toggle('hidden');
+        });
+
+        document.addEventListener('click', () => {
+            if (!exportMenu.classList.contains('hidden')) {
+                exportMenu.classList.add('hidden');
+            }
+        });
+
+        function downloadURI(uri, name) {
+            const link = document.createElement("a");
+            link.download = name;
+            link.href = uri;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        function exportRaster(format = 'png') {
+            const elementToRender = document.getElementById('logo-preview-wrapper');
+            html2canvas(elementToRender, {
+                backgroundColor: null, // Transparent background
+                scale: 3 // 3x resolution
+            }).then(canvas => {
+                const mimeType = format === 'png' ? 'image/png' : 'image/jpeg';
+                downloadURI(canvas.toDataURL(mimeType), `logo.${format}`);
+            });
+            exportMenu.classList.add('hidden');
+        }
+
+        function exportSVG() {
+            // Fungsi ini secara manual membangun ulang logo sebagai file SVG yang bersih dan mandiri.
+            // Ini memastikan output vektor yang scalable dan tidak bergantung pada struktur DOM/CSS saat ini.
+            const { brandName, initials, icon, palette, outline } = currentLogoState;
+            const size = 512; // Ukuran dasar untuk kanvas SVG
+            const iconSize = size * 0.75;
+            const center = size / 2;
+
+            // Ukuran font inisial adaptif
+            let initialsFontSize = size * 0.2;
+            if (initials.length === 3) initialsFontSize = size * 0.18;
+            if (initials.length === 4) initialsFontSize = size * 0.15;
+            if (initials.length >= 5) initialsFontSize = size * 0.12;
+
+            // Logika untuk penempatan diagonal 2 huruf
+            let initialsSVG = `<text x="${center}" y="${center}" font-family="Inter, sans-serif" font-size="${initialsFontSize}" font-weight="bold" fill="${palette.initials}" text-anchor="middle" dominant-baseline="central">${initials}</text>`;
+            if (initials.length === 2) {
+                initialsSVG = `
+                    <g transform="translate(${center}, ${center})" style="font-family: Inter, sans-serif; font-size: ${initialsFontSize}px; font-weight: bold; fill: ${palette.initials}; text-anchor: middle; dominant-baseline: central;">
+                        <text transform="rotate(-15)" x="-${initialsFontSize*0.25}">${initials[0]}</text>
+                        <text transform="rotate(15)" x="${initialsFontSize*0.25}" y="-${initialsFontSize*0.1}">${initials[1]}</text>
+                    </g>`;
+            }
+
+            let outlineSVG = '';
+            if (outline.style !== 'none') {
+                 const textY = size * 0.85;
+                 const textWidth = size * 0.8; // Approximate
+                 const outlineY = textY + size*0.05;
+                 if (outline.style === 'solid') {
+                    outlineSVG = `<line x1="${center - textWidth/2}" y1="${outlineY}" x2="${center + textWidth/2}" y2="${outlineY}" stroke="${outline.color}" stroke-width="${outline.thickness}" />`;
+                 } else if (outline.style === 'wavy') {
+                    const waveHeight = outline.thickness * 2;
+                    outlineSVG = `<path d="M${center-textWidth/2},${outlineY} C${center-textWidth/4},${outlineY-waveHeight} ${center+textWidth/4},${outlineY+waveHeight} ${center+textWidth/2},${outlineY}" stroke="${outline.color}" fill="none" stroke-width="${outline.thickness}" stroke-linecap="round"/>`;
+                 }
+            }
+
+            const finalSVG = `
+                <svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg" style="font-family: Inter, sans-serif;">
+                    <rect width="100%" height="100%" fill="${palette.bg}" />
+                    <g transform="translate(${(size - iconSize)/2}, ${(size - iconSize)/2}) scale(${iconSize/24})">
+                       ${icon.replace(/currentColor/g, palette.icon)}
+                    </g>
+                    ${initialsSVG}
+                    <text x="${center}" y="${size*0.85}" font-size="${size*0.1}" font-weight="bold" fill="${palette.text}" text-anchor="middle">${brandName}</text>
+                    ${outlineSVG}
+                </svg>`;
+
+            const blob = new Blob([finalSVG], {type: 'image/svg+xml;charset=utf-8'});
+            const url = URL.createObjectURL(blob);
+            downloadURI(url, 'logo.svg');
+            URL.revokeObjectURL(url);
+            exportMenu.classList.add('hidden');
+        }
+
+        exportPngBtn.addEventListener('click', (e) => { e.preventDefault(); exportRaster('png'); });
+        exportJpgBtn.addEventListener('click', (e) => { e.preventDefault(); exportRaster('jpeg'); });
+        exportSvgBtn.addEventListener('click', (e) => { e.preventDefault(); exportSVG(); });
+
+        stickyPreviewToggle.addEventListener('change', (e) => {
+            if (e.target.checked) {
+                stickyPreview.classList.remove('hidden');
+                renderStickyPreview();
+            } else {
+                stickyPreview.classList.add('hidden');
+            }
+        });
+
+        // Close modal logic
+        closeModalBtn.addEventListener('click', () => iconModal.classList.add('hidden'));
+        iconModal.addEventListener('click', (e) => {
+            if (e.target === iconModal) {
+                iconModal.classList.add('hidden');
+            }
+        });
+
+        document.addEventListener('DOMContentLoaded', () => {
+            generateAiLogos();
+            setupEditorEventListeners();
+        });
+    </script>
 </body>
 </html>
